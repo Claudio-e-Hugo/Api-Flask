@@ -140,3 +140,47 @@ def get_lines():
     except:
         print("An error ocurred while trying to load lines.json")
         return 500
+
+'''
+    get all segments from lines
+    get all points that are inside one segment
+    average between all points inside the segment
+'''
+
+@app.route("/handle_segments", methods=["POST"])
+def handle_segments():
+    f_lines = open("data/lines.json", "r")
+    lines_data = json.load(f_lines)
+    post_name = "data_" + request.get_json()["post"] + ".json"
+    f_post = open("data/"+post_name)
+    post_data = json.load(f_post)
+    res = {}
+    for street in lines_data:
+        for segment in lines_data[street]:
+            max_seg_lat = max([segment[0][0], segment[1][0]])
+            max_seg_long = max([segment[0][1], segment[1][1]])
+            min_seg_lat = min([segment[0][0], segment[1][0]])
+            min_seg_long = min([segment[0][1], segment[1][1]])
+            res[str(segment)] = []
+            for element in post_data:
+                if (min_seg_lat <= element["lat"] and max_seg_lat >= element["lat"]) and (min_seg_long <= element["long"] and max_seg_long >= element["long"]):
+                    res[str(segment)].append(element)
+    res = average_post_data(res)
+
+    # print(json.dumps(res, indent=4))
+    res = jsonify(res)
+    return res
+
+def average_post_data(data):
+    res = {}
+    for segment in data:
+        if len(data[segment]) > 0:
+            bitrate = sum([float(x["bitrate"]) for x in data[segment]]) / len(data[segment])
+            jitter = sum([float(x["jitter"]) for x in data[segment]]) / len(data[segment])
+            lost = sum([float(x["lost"]) for x in data[segment]]) / len(data[segment])
+        else:
+            bitrate = 0
+            jitter = 0
+            lost = 0
+        res[segment] = {"bitrate": bitrate, "jitter": jitter, "lost": lost}
+    return res    
