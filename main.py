@@ -50,6 +50,37 @@ def lines_to_json(csvFilePath="data/lines.csv", jsonFilePath="data/lines.json"):
     except:
         return {"v" : False}
 
+@app.route("/handle_csv", methods=["POST", "GET"])
+@app.before_first_request
+def handle_csv():
+    csv_files = []
+    if request.get_data().decode("utf-8") != "":
+        csv_files =[ "data_" + request.get_json()["post"] + ".csv"]
+    else:
+        csv_files = [pos_csv for pos_csv in os.listdir("data/") if pos_csv.endswith('.csv') and pos_csv != "lines.csv"]
+    print(csv_files)
+    try:
+        for cf in csv_files:
+            res = []
+            with open('data/' + cf, encoding='utf-8') as file:
+                csv_reader = csv.DictReader(file)
+
+                for row in csv_reader:
+                    if 'hour' not in row.keys():
+                        res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : None, "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
+                    else:
+                        res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : int(row["hour"]), "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
+            file.close()
+
+            with open('data/' + cf.replace("csv", "json"), 'w', encoding='utf-8') as file:
+                json_string = json.dumps(res, indent=4)
+                file.write(json_string)
+            file.close()
+        return {"v" : True}
+    except Exception as e:
+        print("Error: " + str(e))
+        return {"v" : False}
+
 @app.route("/handle_p15")
 def p15_to_json(csv_file="data/data_p15.csv", json_file="data/data_p15.json"):
     try:
@@ -126,7 +157,6 @@ def get_json():
         json_files = ["data_" + request.get_json()["post"] + ".json"]
     else:
         json_files = [pos_json for pos_json in os.listdir("data/") if pos_json.endswith('.json') and pos_json != "lines.json"]
-    print(json_files)
     res = {}
     for jf in json_files:
         try:
@@ -166,7 +196,6 @@ def handle_segments():
         json_files =[ "data_" + request.get_json()["post"] + ".json"]
     else:
         json_files = [pos_json for pos_json in os.listdir("data/") if pos_json.endswith('.json') and pos_json != "lines.json"]
-    print(json_files)
     res = {}
     for jf in json_files:
         f_post = open("data/" + jf)
