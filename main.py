@@ -3,6 +3,7 @@ from types import TracebackType
 from flask import Flask, jsonify, request
 import csv
 import json
+import os
 
 app = Flask(__name__)
 
@@ -118,17 +119,26 @@ def cell_to_json(csv_file="data/data_cell.csv", json_file="data/data_cell.json")
     except:
         return {"v": False}
 
-@app.route("/get_json/", methods=["POST"])
+@app.route("/get_json/", methods=["POST", "GET"])
 def get_json():
-    filename = "data_" + request.get_json()["post"] + ".json"
-    try:
-        f = open("data/" + filename, 'r')
-        data = json.load(f)
-        f.close()
-        return jsonify(data), 201
-    except:
-        print(f"File {filename} does not exists")
-        return 500
+    json_files = []
+    if request.get_data().decode("utf-8") != "":
+        json_files = ["data_" + request.get_json()["post"] + ".json"]
+    else:
+        json_files = [pos_json for pos_json in os.listdir("data/") if pos_json.endswith('.json') and pos_json != "lines.json"]
+    print(json_files)
+    res = {}
+    for jf in json_files:
+        try:
+            f = open("data/" + jf, 'r')
+            post_data = json.load(f)
+            f.close()
+            res[jf.replace("data_", "").replace(".json", "")] = post_data
+        except:
+            print(f"File {jf} does not exists")
+            return 500
+    return jsonify(res)
+
 
 @app.route("/get_lines", methods=['GET'])
 def get_lines():
@@ -147,29 +157,34 @@ def get_lines():
     average between all points inside the segment
 '''
 
-@app.route("/handle_segments", methods=["POST"])
+@app.route("/handle_segments", methods=["POST", "GET"])
 def handle_segments():
     f_lines = open("data/lines.json", "r")
     lines_data = json.load(f_lines)
-    post_name = "data_" + request.get_json()["post"] + ".json"
-    f_post = open("data/"+post_name)
-    post_data = json.load(f_post)
+    json_files = []
+    if request.get_data().decode("utf-8") != "":
+        json_files =[ "data_" + request.get_json()["post"] + ".json"]
+    else:
+        json_files = [pos_json for pos_json in os.listdir("data/") if pos_json.endswith('.json') and pos_json != "lines.json"]
+    print(json_files)
     res = {}
-    for street in lines_data:
-        for segment in lines_data[street]:
-            max_seg_lat = max([segment[0][0], segment[1][0]])
-            max_seg_long = max([segment[0][1], segment[1][1]])
-            min_seg_lat = min([segment[0][0], segment[1][0]])
-            min_seg_long = min([segment[0][1], segment[1][1]])
-            res[str(segment)] = []
-            for element in post_data:
-                if (min_seg_lat <= element["lat"] and max_seg_lat >= element["lat"]) and (min_seg_long <= element["long"] and max_seg_long >= element["long"]):
-                    res[str(segment)].append(element)
-    res = average_post_data(res)
+    for jf in json_files:
+        f_post = open("data/" + jf)
+        post_data = json.load(f_post)
+        aux = {}
+        for street in lines_data:
+            for segment in lines_data[street]:
+                max_seg_lat = max([segment[0][0], segment[1][0]])
+                max_seg_long = max([segment[0][1], segment[1][1]])
+                min_seg_lat = min([segment[0][0], segment[1][0]])
+                min_seg_long = min([segment[0][1], segment[1][1]])
+                aux[str(segment)] = []
+                for element in post_data:
+                    if (min_seg_lat <= element["lat"] and max_seg_lat >= element["lat"]) and (min_seg_long <= element["long"] and max_seg_long >= element["long"]):
+                        aux[str(segment)].append(element)
+        res[jf.replace("data_", "").replace(".json", "")] = average_post_data(aux)
+    return jsonify(res)
 
-    # print(json.dumps(res, indent=4))
-    res = jsonify(res)
-    return res
 
 def average_post_data(data):
     res = {}
