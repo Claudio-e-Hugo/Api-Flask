@@ -1,6 +1,3 @@
-from codecs import latin_1_decode
-from crypt import methods
-from types import TracebackType
 from flask import Flask, jsonify, request
 import csv
 import json
@@ -13,7 +10,7 @@ def main():
     return "<p>Hello World!</p>"
 
 @app.route("/handle_lines")
-def lines_to_json(csvFilePath="data/lines.csv", jsonFilePath="data/lines.json"):
+def lines_to_json(csvFilePath="data/csv/lines.csv", jsonFilePath="data/json/lines.json"):
     try:
         res = {}
         with open(csvFilePath, encoding='utf-8') as csv_file:
@@ -58,12 +55,17 @@ def handle_csv():
     if request.get_data().decode("utf-8") != "":
         csv_files =[ "data_" + request.get_json()["post"] + ".csv"]
     else:
-        csv_files = [pos_csv for pos_csv in os.listdir("data/") if pos_csv.endswith('.csv') and pos_csv != "lines.csv"]
-    print(csv_files)
+        csv_files = [pos_csv for pos_csv in os.listdir("data/csv/") if pos_csv.endswith('.csv') and pos_csv != "lines.csv"]
+    
+    # only executes if the that are missing csv files
+    missing_files = list(set(csv_files) - set([str(pos_csv).replace(".json", ".csv") for pos_csv in os.listdir("data/") if pos_csv.endswith('.json') and pos_csv != "lines.json"]))
+
+    print(f"Parsing missing files: {missing_files}\n")
+
     try:
-        for cf in csv_files:
+        for cf in missing_files:
             res = []
-            with open('data/' + cf, encoding='utf-8') as file:
+            with open('data/csv/' + cf, encoding='utf-8') as file:
                 csv_reader = csv.DictReader(file)
 
                 for row in csv_reader:
@@ -73,7 +75,7 @@ def handle_csv():
                         res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : int(row["hour"]), "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
             file.close()
 
-            with open('data/' + cf.replace("csv", "json"), 'w', encoding='utf-8') as file:
+            with open('data/json/' + cf.replace("csv", "json"), 'w', encoding='utf-8') as file:
                 json_string = json.dumps(res, indent=4)
                 file.write(json_string)
             file.close()
@@ -82,27 +84,27 @@ def handle_csv():
         print("Error: " + str(e))
         return {"v" : False}
 
-@app.route("/handle_p15")
-def p15_to_json(csv_file="data/data_p15.csv", json_file="data/data_p15.json"):
-    try:
-        res = []
-        with open(csv_file, encoding='utf-8') as file:
-            csv_reader = csv.DictReader(file)
+# @app.route("/handle_p15")
+# def p15_to_json(csv_file="data/data_p15.csv", json_file="data/data_p15.json"):
+#     try:
+#         res = []
+#         with open(csv_file, encoding='utf-8') as file:
+#             csv_reader = csv.DictReader(file)
 
-            for row in csv_reader:
-                res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "bitrate" : float(row["bitrate_p15"]), "jitter": float(row["jitter_p15"]), "lost": float(row["lost_p15"])})
-        file.close()
+#             for row in csv_reader:
+#                 res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "bitrate" : float(row["bitrate_p15"]), "jitter": float(row["jitter_p15"]), "lost": float(row["lost_p15"])})
+#         file.close()
 
-        with open(json_file, 'w', encoding='utf-8') as file:
-            json_string = json.dumps(res, indent=4)
-            file.write(json_string)
-        file.close()
-        return {"v" : True}
-    except:
-        return {"v" : False}
+#         with open(json_file, 'w', encoding='utf-8') as file:
+#             json_string = json.dumps(res, indent=4)
+#             file.write(json_string)
+#         file.close()
+#         return {"v" : True}
+#     except:
+#         return {"v" : False}
 
-@app.route("/handle_p19")
-def p19_to_json(csv_file="data/data_p19.csv", json_file="data/data_p19.json"):
+# @app.route("/handle_p19")
+# def p19_to_json(csv_file="data/data_p19.csv", json_file="data/data_p19.json"):
     try:
         res = []
         with open(csv_file, encoding='utf-8') as file:
@@ -119,8 +121,8 @@ def p19_to_json(csv_file="data/data_p19.csv", json_file="data/data_p19.json"):
     except:
         return {"v" : False}
 
-@app.route("/handle_cell")
-def cell_to_json(csv_file="data/data_cell.csv", json_file="data/data_cell.json"):
+# @app.route("/handle_cell")
+# def cell_to_json(csv_file="data/data_cell.csv", json_file="data/data_cell.json"):
     try:
         res = []
         tmp = []
@@ -157,11 +159,11 @@ def get_json():
     if request.get_data().decode("utf-8") != "":
         json_files = ["data_" + request.get_json()["post"] + ".json"]
     else:
-        json_files = [pos_json for pos_json in os.listdir("data/") if pos_json.endswith('.json') and pos_json != "lines.json"]
+        json_files = [pos_json for pos_json in os.listdir("data/json/") if pos_json.endswith('.json') and pos_json != "lines.json"]
     res = {}
     for jf in json_files:
         try:
-            f = open("data/" + jf, 'r')
+            f = open("data/json/" + jf, 'r')
             post_data = json.load(f)
             f.close()
             res[jf.replace("data_", "").replace(".json", "")] = post_data
@@ -174,7 +176,7 @@ def get_json():
 @app.route("/get_lines", methods=['GET'])
 def get_lines():
     try:
-        f = open("data/lines.json", 'r')
+        f = open("data/json/lines.json", 'r')
         data = json.load(f)
         f.close()
         return jsonify(data), 201
@@ -187,40 +189,66 @@ def get_lines():
     get all points that are inside one segment
     average between all points inside the segment
 '''
-
 @app.route("/handle_segments", methods=["POST", "GET"])
 def handle_segments():
-    f_lines = open("data/lines.json", "r")
+    f_lines = open("data/json/lines.json", "r")
     lines_data = json.load(f_lines)
     json_files = []
     if request.get_data().decode("utf-8") != "":
         json_files =[ "data_" + request.get_json()["post"] + ".json"]
     else:
-        json_files = [pos_json for pos_json in os.listdir("data/") if pos_json.endswith('.json') and pos_json != "lines.json"]
+        json_files = [pos_json for pos_json in os.listdir("data/json/") if pos_json.endswith('.json') and pos_json != "lines.json"]
+    
+    already_segmented = [pos_json for pos_json in os.listdir("data/json/segmented/") if pos_json.endswith('.json') and pos_json != "lines.json"]
+    
     res = {}
-    for jf in json_files:
-        f_post = open("data/" + jf)
-        post_data = json.load(f_post)
-        aux = {}
-        for street in lines_data:
-            for segment in lines_data[street]:
-                max_seg_lat = max([segment[0][0], segment[1][0]])
-                max_seg_long = max([segment[0][1], segment[1][1]])
-                min_seg_lat = min([segment[0][0], segment[1][0]])
-                min_seg_long = min([segment[0][1], segment[1][1]])
-                aux[str(segment)] = []
-                for element in post_data:
-                    if (min_seg_lat <= element["lat"] and max_seg_lat >= element["lat"]) and (min_seg_long <= element["long"] and max_seg_long >= element["long"]):
-                        aux[str(segment)].append(element)
-        # get_best_values(aux)
-        res[jf.replace("data_", "").replace(".json", "")] = average_post_data(aux)
-    return jsonify([res,get_best_values(aux)])
 
+    print(f"json_files: {json_files}\n")
+    print(f"already_segmented: {already_segmented}\n")
 
+    if len(already_segmented) != 2:
+        for jf in json_files:
+            print(f"Handling segments for {jf}\n")
+            f_post = open("data/json/" + jf)
+            post_data = json.load(f_post)
+            aux = {}
+            for street in lines_data:
+                for segment in lines_data[street]:
+                    max_seg_lat = max([segment[0][0], segment[1][0]])
+                    max_seg_long = max([segment[0][1], segment[1][1]])
+                    min_seg_lat = min([segment[0][0], segment[1][0]])
+                    min_seg_long = min([segment[0][1], segment[1][1]])
+                    aux[str(segment)] = []
+                    for element in post_data:
+                        if (min_seg_lat <= element["lat"] and max_seg_lat >= element["lat"]) and (min_seg_long <= element["long"] and max_seg_long >= element["long"]):
+                            aux[str(segment)].append(element)
+            res[jf.replace("data_", "").replace(".json", "")] = average_post_data(aux)
+        
+        with open('data/json/segmented/segmented_data.json', 'w', encoding='utf-8') as file:
+            json_string = json.dumps(res, indent=4)
+            file.write(json_string)
+        file.close()
+
+        with open('data/json/segmented/best_segmented_data.json', 'w', encoding='utf-8') as file:
+            json_string = json.dumps(get_best_values(aux), indent=4)
+            file.write(json_string)
+        file.close()
+
+    print("Finished handling segments")
+
+    f = open('data/json/segmented/segmented_data.json', 'r')
+    segmented = json.load(f)
+    f.close()
+
+    f = open('data/json/segmented/best_segmented_data.json', 'r')
+    best_segmented = json.load(f)
+    f.close()
+
+    print(jsonify([segmented, best_segmented]))
+
+    return jsonify([segmented, best_segmented])
 
 def average_post_data(data):
-  
-
     res = {}
     for segment in data:
         if len(data[segment]) > 0:
@@ -233,7 +261,6 @@ def average_post_data(data):
         #     lost = 0
             res[segment] = {"bitrate": bitrate, "jitter": jitter, "lost": lost}
     return res    
-
 
 def get_best_values(data):
     best_bitrate = 0
