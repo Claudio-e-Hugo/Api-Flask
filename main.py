@@ -1,3 +1,4 @@
+from codecs import latin_1_decode
 from crypt import methods
 from types import TracebackType
 from flask import Flask, jsonify, request
@@ -211,20 +212,45 @@ def handle_segments():
                 for element in post_data:
                     if (min_seg_lat <= element["lat"] and max_seg_lat >= element["lat"]) and (min_seg_long <= element["long"] and max_seg_long >= element["long"]):
                         aux[str(segment)].append(element)
+        # get_best_values(aux)
         res[jf.replace("data_", "").replace(".json", "")] = average_post_data(aux)
-    return jsonify(res)
+    return jsonify([res,get_best_values(aux)])
+
 
 
 def average_post_data(data):
+  
+
     res = {}
     for segment in data:
         if len(data[segment]) > 0:
             bitrate = sum([float(x["bitrate"]) for x in data[segment]]) / len(data[segment])
             jitter = sum([float(x["jitter"]) for x in data[segment]]) / len(data[segment])
             lost = sum([float(x["lost"]) for x in data[segment]]) / len(data[segment])
-        else:
-            bitrate = 0
-            jitter = 0
-            lost = 0
-        res[segment] = {"bitrate": bitrate, "jitter": jitter, "lost": lost}
+        # else:
+        #     bitrate = 0
+        #     jitter = 0
+        #     lost = 0
+            res[segment] = {"bitrate": bitrate, "jitter": jitter, "lost": lost}
     return res    
+
+
+def get_best_values(data):
+    best_bitrate = 0
+    best_jitter = 0
+    best_lost = 0
+    best_bitrate_seg=0
+    best_jitter_seg=1000
+    best_lost_seg=1000
+    res_best={}
+    for segment in data:
+        if len(data[segment]) > 0:
+            best_bitrate = max([float(x["bitrate"]) for x in data[segment]])
+            best_bitrate_seg=segment
+            best_jitter = min([float(x["jitter"]) for x in data[segment]])
+            best_jitter_seg=segment
+            best_lost = min([float(x["lost"]) for x in data[segment]])
+            best_lost_seg=segment
+
+        res_best[segment]={"bitrate": best_bitrate,"best_birate_segment":best_bitrate_seg, "jitter": best_jitter,"best_jitter_segment":best_jitter_seg, "lost": best_lost,"best_lost_segment":best_lost_seg}
+    return res_best
