@@ -105,53 +105,53 @@ def handle_csv():
 
 # @app.route("/handle_p19")
 # def p19_to_json(csv_file="data/data_p19.csv", json_file="data/data_p19.json"):
-    try:
-        res = []
-        with open(csv_file, encoding='utf-8') as file:
-            csv_reader = csv.DictReader(file)
-            for row in csv_reader:
-                res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "bitrate" : float(row["bitrate_p19"]), "jitter": float(row["jitter_p19"]), "lost": float(row["lost_p19"])})
-        file.close()
+    # try:
+    #     res = []
+    #     with open(csv_file, encoding='utf-8') as file:
+    #         csv_reader = csv.DictReader(file)
+    #         for row in csv_reader:
+    #             res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "bitrate" : float(row["bitrate_p19"]), "jitter": float(row["jitter_p19"]), "lost": float(row["lost_p19"])})
+    #     file.close()
 
-        with open(json_file, 'w', encoding='utf-8') as file:
-            json_string = json.dumps(res, indent=4)
-            file.write(json_string)
-        file.close()
-        return {"v" : True}
-    except:
-        return {"v" : False}
+    #     with open(json_file, 'w', encoding='utf-8') as file:
+    #         json_string = json.dumps(res, indent=4)
+    #         file.write(json_string)
+    #     file.close()
+    #     return {"v" : True}
+    # except:
+    #     return {"v" : False}
 
 # @app.route("/handle_cell")
 # def cell_to_json(csv_file="data/data_cell.csv", json_file="data/data_cell.json"):
-    try:
-        res = []
-        tmp = []
-        with open(csv_file, encoding='utf-8') as file:
-            csv_reader = csv.DictReader(file)
+    # try:
+    #     res = []
+    #     tmp = []
+    #     with open(csv_file, encoding='utf-8') as file:
+    #         csv_reader = csv.DictReader(file)
 
-            for row in csv_reader:
-                tmp.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "bitrate" : float(row["bitrate_cell"]), "jitter": float(row["jitter_cell"]), "lost": float(row["lost_cell"])})
-                if len(tmp) >= 5:
-                    res.append(
-                        {
-                            "lat": sum([x["lat"] for x in tmp])/len(tmp),
-                            "long": sum([x["long"] for x in tmp])/len(tmp),
-                            "bitrate": sum([x["bitrate"] for x in tmp])/len(tmp),
-                            "jitter": sum([x["jitter"] for x in tmp])/len(tmp),
-                            "lost": sum([x["lost"] for x in tmp])/len(tmp)
-                        }
-                    )
-                    tmp = []
+    #         for row in csv_reader:
+    #             tmp.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "bitrate" : float(row["bitrate_cell"]), "jitter": float(row["jitter_cell"]), "lost": float(row["lost_cell"])})
+    #             if len(tmp) >= 5:
+    #                 res.append(
+    #                     {
+    #                         "lat": sum([x["lat"] for x in tmp])/len(tmp),
+    #                         "long": sum([x["long"] for x in tmp])/len(tmp),
+    #                         "bitrate": sum([x["bitrate"] for x in tmp])/len(tmp),
+    #                         "jitter": sum([x["jitter"] for x in tmp])/len(tmp),
+    #                         "lost": sum([x["lost"] for x in tmp])/len(tmp)
+    #                     }
+    #                 )
+    #                 tmp = []
 
-        file.close()
+    #     file.close()
 
-        with open(json_file, 'w', encoding='utf-8') as file:
-            json_string = json.dumps(res, indent=4)
-            file.write(json_string)
-        file.close()
-        return {"v": True}
-    except:
-        return {"v": False}
+    #     with open(json_file, 'w', encoding='utf-8') as file:
+    #         json_string = json.dumps(res, indent=4)
+    #         file.write(json_string)
+    #     file.close()
+    #     return {"v": True}
+    # except:
+    #     return {"v": False}
 
 @app.route("/get_json/", methods=["POST", "GET"])
 def get_json():
@@ -203,9 +203,6 @@ def handle_segments():
     
     res = {}
 
-    print(f"json_files: {json_files}\n")
-    print(f"already_segmented: {already_segmented}\n")
-
     if len(already_segmented) != 2:
         for jf in json_files:
             print(f"Handling segments for {jf}\n")
@@ -230,7 +227,7 @@ def handle_segments():
         file.close()
 
         with open('data/json/segmented/best_segmented_data.json', 'w', encoding='utf-8') as file:
-            json_string = json.dumps(get_best_values(aux), indent=4)
+            json_string = json.dumps(get_best_values(res), indent=4)
             file.write(json_string)
         file.close()
 
@@ -243,8 +240,6 @@ def handle_segments():
     f = open('data/json/segmented/best_segmented_data.json', 'r')
     best_segmented = json.load(f)
     f.close()
-
-    print(jsonify([segmented, best_segmented]))
 
     return jsonify([segmented, best_segmented])
 
@@ -263,21 +258,38 @@ def average_post_data(data):
     return res    
 
 def get_best_values(data):
-    best_bitrate = 0
-    best_jitter = 0
-    best_lost = 0
-    best_bitrate_seg=0
-    best_jitter_seg=1000
-    best_lost_seg=1000
-    res_best={}
-    for segment in data:
-        if len(data[segment]) > 0:
-            best_bitrate = max([float(x["bitrate"]) for x in data[segment]])
-            best_bitrate_seg=segment
-            best_jitter = min([float(x["jitter"]) for x in data[segment]])
-            best_jitter_seg=segment
-            best_lost = min([float(x["lost"]) for x in data[segment]])
-            best_lost_seg=segment
+    res = {}
+    
+    for post in data:
+        for segment in data[post]:
+            if segment not in res.keys():
+                res[segment] = data[post][segment]
+                res[segment]["best_post"] = post
+            else:
+                if float(data[post][segment]["bitrate"]) > float(res[segment]["bitrate"]):
+                    res[segment]["bitrate"] = data[post][segment]["bitrate"]
+                    res[segment]["jitter"] = data[post][segment]["jitter"]
+                    res[segment]["lost"] = data[post][segment]["lost"]
+                    res[segment]["best_post"] = post
 
-        res_best[segment]={"bitrate": best_bitrate,"best_birate_segment":best_bitrate_seg, "jitter": best_jitter,"best_jitter_segment":best_jitter_seg, "lost": best_lost,"best_lost_segment":best_lost_seg}
-    return res_best
+    return res
+
+# def get_best_values(data):
+#     best_bitrate = 0
+#     best_jitter = 0
+#     best_lost = 0
+#     best_bitrate_seg=0
+#     best_jitter_seg=1000
+#     best_lost_seg=1000
+#     res_best={}
+#     for segment in data:
+#         if len(data[segment]) > 0:
+#             best_bitrate = max([float(x["bitrate"]) for x in data[segment]])
+#             best_bitrate_seg=segment
+#             best_jitter = min([float(x["jitter"]) for x in data[segment]])
+#             best_jitter_seg=segment
+#             best_lost = min([float(x["lost"]) for x in data[segment]])
+#             best_lost_seg=segment
+
+#         res_best[segment]={"bitrate": best_bitrate,"best_bitrate_segment":best_bitrate_seg, "jitter": best_jitter,"best_jitter_segment":best_jitter_seg, "lost": best_lost,"best_lost_segment":best_lost_seg}
+#     return res_best
