@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 import csv
 import json
 import os
+from math import sqrt, pow
 
 app = Flask(__name__)
 
@@ -267,13 +268,9 @@ def get_best_values(data):
     res = {}
     
     for post in data:
-        print(f"post: {post}\n")
         for segment in data[post]:
-            print(f"segment: {segment}\n")
-            print(f"data_post_segment: {data[post][segment]}\n")
             if len(data[post][segment]) > 0:
                 for values in data[post][segment]:
-                    print(f"values: {values}\n")
                     if segment not in res.keys():
                         res[segment] = values
                         res[segment]["best_post_bitrate"] = post
@@ -286,20 +283,32 @@ def get_best_values(data):
                         res[segment]["lat_lost"] = values["lat"]
                         res[segment]["long_lost"] = values["long"]
                     else:
-                        if float(values["bitrate"]) > float(res[segment]["bitrate"]):
+                        if (float(values["bitrate"]) >= float(res[segment]["bitrate"])) and (distance_points(post, [values["lat"], values["long"]]) < distance_points(post, [res[segment]["lat_bitrate"], res[segment]["long_bitrate"]])):
                             res[segment]["bitrate"] = values["bitrate"]
                             res[segment]["best_post_bitrate"] = post
                             res[segment]["lat_bitrate"] = values["lat"]
                             res[segment]["long_bitrate"] = values["long"]
-                        if float(values["jitter"]) > float(res[segment]["jitter"]):
+                        if float(values["jitter"]) <= float(res[segment]["jitter"]) and (distance_points(post, [values["lat"], values["long"]]) < distance_points(post, [res[segment]["lat_jitter"], res[segment]["long_jitter"]])):
                             res[segment]["jitter"] = values["jitter"]
                             res[segment]["best_post_jitter"] = post
                             res[segment]["lat_jitter"] = values["lat"]
                             res[segment]["long_jitter"] = values["long"]
-                        if float(values["lost"]) > float(res[segment]["lost"]):
+                        if float(values["lost"]) <= float(res[segment]["lost"]) and (distance_points(post, [values["lat"], values["long"]]) < distance_points(post, [res[segment]["lat_lost"], res[segment]["long_lost"]])):
                             res[segment]["lost"] = values["lost"]
                             res[segment]["best_post_lost"] = post
                             res[segment]["lat_lost"] = values["lat"]
                             res[segment]["long_lost"] = values["long"]
+                            
 
     return res
+
+def distance_points(post, point2):
+    post_coords = {
+        'p15': [40.64416, -8.65616],
+        'p19' : [40.64339, -8.65847],
+        'p3' : [40.64074, -8.65705],
+        'p5' : [40.64088, -8.65397]
+    }
+    if post != 'cell':
+        return sqrt(pow(point2[0]-post_coords[post][0], 2) + pow(point2[1]-post_coords[post][1], 2))
+    return 0
