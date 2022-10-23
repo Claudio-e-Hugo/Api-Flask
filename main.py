@@ -202,6 +202,7 @@ def handle_segments():
     already_segmented = [pos_json for pos_json in os.listdir("data/json/segmented/") if pos_json.endswith('.json') and pos_json != "lines.json"]
     
     res = {}
+    res2 = {}
 
     if len(already_segmented) != 2:
         for jf in json_files:
@@ -209,6 +210,7 @@ def handle_segments():
             f_post = open("data/json/" + jf)
             post_data = json.load(f_post)
             aux = {}
+            aux2 = {}
             for street in lines_data:
                 for segment in lines_data[street]:
                     max_seg_lat = max([segment[0][0], segment[1][0]])
@@ -216,18 +218,22 @@ def handle_segments():
                     min_seg_lat = min([segment[0][0], segment[1][0]])
                     min_seg_long = min([segment[0][1], segment[1][1]])
                     aux[str(segment)] = []
+                    aux2[str(segment)] = []
                     for element in post_data:
                         if (min_seg_lat <= element["lat"] and max_seg_lat >= element["lat"]) and (min_seg_long <= element["long"] and max_seg_long >= element["long"]):
                             aux[str(segment)].append(element)
+                            aux2[str(segment)].append(element)
+
             res[jf.replace("data_", "").replace(".json", "")] = average_post_data(aux)
-        
+            res2[jf.replace("data_", "").replace(".json", "")] = aux2
+
         with open('data/json/segmented/segmented_data.json', 'w', encoding='utf-8') as file:
             json_string = json.dumps(res, indent=4)
             file.write(json_string)
         file.close()
 
         with open('data/json/segmented/best_segmented_data.json', 'w', encoding='utf-8') as file:
-            json_string = json.dumps(get_best_values(res), indent=4)
+            json_string = json.dumps(get_best_values(res2), indent=4)
             file.write(json_string)
         file.close()
 
@@ -255,41 +261,45 @@ def average_post_data(data):
         #     jitter = 0
         #     lost = 0
             res[segment] = {"bitrate": bitrate, "jitter": jitter, "lost": lost}
-    return res    
+    return res                  
 
 def get_best_values(data):
     res = {}
     
     for post in data:
+        print(f"post: {post}\n")
         for segment in data[post]:
-            if segment not in res.keys():
-                res[segment] = data[post][segment]
-                res[segment]["best_post"] = post
-            else:
-                if float(data[post][segment]["bitrate"]) > float(res[segment]["bitrate"]):
-                    res[segment]["bitrate"] = data[post][segment]["bitrate"]
-                    res[segment]["jitter"] = data[post][segment]["jitter"]
-                    res[segment]["lost"] = data[post][segment]["lost"]
-                    res[segment]["best_post"] = post
+            print(f"segment: {segment}\n")
+            print(f"data_post_segment: {data[post][segment]}\n")
+            if len(data[post][segment]) > 0:
+                for values in data[post][segment]:
+                    print(f"values: {values}\n")
+                    if segment not in res.keys():
+                        res[segment] = values
+                        res[segment]["best_post_bitrate"] = post
+                        res[segment]["lat_bitrate"] = values["lat"]
+                        res[segment]["long_bitrate"] = values["long"]
+                        res[segment]["best_post_jitter"] = post
+                        res[segment]["lat_jitter"] = values["lat"]
+                        res[segment]["long_jitter"] = values["long"]
+                        res[segment]["best_post_lost"] = post
+                        res[segment]["lat_lost"] = values["lat"]
+                        res[segment]["long_lost"] = values["long"]
+                    else:
+                        if float(values["bitrate"]) > float(res[segment]["bitrate"]):
+                            res[segment]["bitrate"] = values["bitrate"]
+                            res[segment]["best_post_bitrate"] = post
+                            res[segment]["lat_bitrate"] = values["lat"]
+                            res[segment]["long_bitrate"] = values["long"]
+                        if float(values["jitter"]) > float(res[segment]["jitter"]):
+                            res[segment]["jitter"] = values["jitter"]
+                            res[segment]["best_post_jitter"] = post
+                            res[segment]["lat_jitter"] = values["lat"]
+                            res[segment]["long_jitter"] = values["long"]
+                        if float(values["lost"]) > float(res[segment]["lost"]):
+                            res[segment]["lost"] = values["lost"]
+                            res[segment]["best_post_lost"] = post
+                            res[segment]["lat_lost"] = values["lat"]
+                            res[segment]["long_lost"] = values["long"]
 
     return res
-
-# def get_best_values(data):
-#     best_bitrate = 0
-#     best_jitter = 0
-#     best_lost = 0
-#     best_bitrate_seg=0
-#     best_jitter_seg=1000
-#     best_lost_seg=1000
-#     res_best={}
-#     for segment in data:
-#         if len(data[segment]) > 0:
-#             best_bitrate = max([float(x["bitrate"]) for x in data[segment]])
-#             best_bitrate_seg=segment
-#             best_jitter = min([float(x["jitter"]) for x in data[segment]])
-#             best_jitter_seg=segment
-#             best_lost = min([float(x["lost"]) for x in data[segment]])
-#             best_lost_seg=segment
-
-#         res_best[segment]={"bitrate": best_bitrate,"best_bitrate_segment":best_bitrate_seg, "jitter": best_jitter,"best_jitter_segment":best_jitter_seg, "lost": best_lost,"best_lost_segment":best_lost_seg}
-#     return res_best
