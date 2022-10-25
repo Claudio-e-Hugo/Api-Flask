@@ -312,3 +312,14 @@ def distance_points(post, point2):
     if post != 'cell':
         return sqrt(pow(point2[0]-post_coords[post][0], 2) + pow(point2[1]-post_coords[post][1], 2))
     return 0
+
+# def order_hours(data):
+#     res = []
+#     for element in data:
+#         if data["hour"] not in res.keys():
+#             res[data["hour"]]=element
+#         else:
+#             res[data["hour"]].append(element)
+
+
+#     return res
