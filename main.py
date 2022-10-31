@@ -6,6 +6,11 @@ from math import sqrt, pow
 
 app = Flask(__name__)
 
+p1=[40.6464534,-8.649256]
+p2=[40.642165, -8.646138]
+p3=[40.641115, -8.653283]
+p4=[40.643101,-8.6599]
+
 @app.route("/")
 def main():
     return "<p>Hello World!</p>"
@@ -54,6 +59,8 @@ def lines_to_json(csvFilePath="data/csv/lines.csv", jsonFilePath="data/json/line
 def handle_csv():
     csv_files = []
     if request.get_data().decode("utf-8") != "":
+        
+
         csv_files =[ "data_" + request.get_json()["post"] + ".csv"]
     else:
         csv_files = [pos_csv for pos_csv in os.listdir("data/csv/") if pos_csv.endswith('.csv') and pos_csv != "lines.csv"]
@@ -68,12 +75,19 @@ def handle_csv():
             res = []
             with open('data/csv/' + cf, encoding='utf-8') as file:
                 csv_reader = csv.DictReader(file)
-
-                for row in csv_reader:
-                    if 'hour' not in row.keys():
-                        res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : None, "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
-                    else:
-                        res.append({"lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : int(row["hour"]), "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
+                if cf == "data_cell.csv":
+                        for row in csv_reader:
+                            if(float(row["lat"])<=p1[0] and float(row["lat"])>=p3[0] and float(row["long"])>=p4[1] and float(row["long"])<=p2[1]):
+                                if 'hour' not in row.keys():
+                                        res.append({"post":"cell","lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : None, "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
+                                else:
+                                    res.append({"post":"cell","lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : int(row["hour"]), "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
+                else:
+                    for row in csv_reader:
+                            if 'hour' not in row.keys():
+                                    res.append({"post":cf.replace("data_", "").replace(".csv", "") ,"lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : None, "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
+                            else:
+                                res.append({"post":cf.replace("data_", "").replace(".csv", "") ,"lat" : float(row["lat"]), "long" : float(row["long"]), "hour" : int(row["hour"]), "bitrate" : float(row["bitrate"]), "jitter": float(row["jitter"]), "lost": float(row["lost"])})
             file.close()
 
             with open('data/json/' + cf.replace("csv", "json"), 'w', encoding='utf-8') as file:
@@ -312,6 +326,16 @@ def distance_points(post, point2):
     if post != 'cell':
         return sqrt(pow(point2[0]-post_coords[post][0], 2) + pow(point2[1]-post_coords[post][1], 2))
     return 0
+
+def subset_cells(data,p1,p2,p3,p4):
+    res = []
+    for element in data:
+        #if element lat and long are between the points of the polygon then add to the list
+        if(element["lat"]<=p1[0] and element["lat"]>=p3[0] and element["long"]>=p4[1] and element["long"]<=p2[1]):
+            res.append(element)
+        
+    return res
+
 
 # def order_hours(data):
 #     res = []
